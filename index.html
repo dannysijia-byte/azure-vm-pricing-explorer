@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Azure VM Pricing Explorer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><path d="M14.5 3L2 22.5h9.5L16 14l4.5 13H30L18 3h-3.5z" fill="currentColor"/></svg>
+        <span>Azure VM Pricing Explorer</span>
+      </div>
+      <nav class="header-nav">
+        <span id="last-updated" class="header-meta"></span>
+        <span id="sku-count-badge" class="header-badge" style="display:none"></span>
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+          <svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Region & Pricing Selectors — the primary controls, no auth needed -->
+    <section class="selector-bar" id="selector-bar">
+      <div class="selector-group">
+        <label for="sel-region">Region</label>
+        <select id="sel-region">
+          <option value="eastus">East US</option>
+          <option value="eastus2">East US 2</option>
+          <option value="westus">West US</option>
+          <option value="westus2">West US 2</option>
+          <option value="westus3">West US 3</option>
+          <option value="centralus">Central US</option>
+          <option value="northcentralus">North Central US</option>
+          <option value="southcentralus">South Central US</option>
+          <option value="westeurope">West Europe</option>
+          <option value="northeurope">North Europe</option>
+          <option value="uksouth">UK South</option>
+          <option value="ukwest">UK West</option>
+          <option value="francecentral">France Central</option>
+          <option value="germanywestcentral">Germany West Central</option>
+          <option value="swedencentral">Sweden Central</option>
+          <option value="norwayeast">Norway East</option>
+          <option value="southeastasia">Southeast Asia</option>
+          <option value="eastasia">East Asia</option>
+          <option value="japaneast">Japan East</option>
+          <option value="japanwest">Japan West</option>
+          <option value="koreacentral">Korea Central</option>
+          <option value="australiaeast">Australia East</option>
+          <option value="australiasoutheast">Australia Southeast</option>
+          <option value="centralindia">Central India</option>
+          <option value="southindia">South India</option>
+          <option value="canadacentral">Canada Central</option>
+          <option value="canadaeast">Canada East</option>
+          <option value="brazilsouth">Brazil South</option>
+          <option value="southafricanorth">South Africa North</option>
+          <option value="uaenorth">UAE North</option>
+          <option value="qatarcentral">Qatar Central</option>
+          <option value="polandcentral">Poland Central</option>
+          <option value="italynorth">Italy North</option>
+          <option value="israelcentral">Israel Central</option>
+          <option value="mexicocentral">Mexico Central</option>
+          <option value="spaincentral">Spain Central</option>
+          <option value="austriaeast">Austria East</option>
+        </select>
+      </div>
+      <div class="selector-group">
+        <label for="sel-currency">Currency</label>
+        <select id="sel-currency">
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (&euro;)</option>
+          <option value="GBP">GBP (&pound;)</option>
+          <option value="AUD">AUD (A$)</option>
+          <option value="CAD">CAD (C$)</option>
+          <option value="JPY">JPY (&yen;)</option>
+          <option value="KRW">KRW (&won;)</option>
+          <option value="INR">INR (&pound;)</option>
+          <option value="BRL">BRL (R$)</option>
+          <option value="CHF">CHF</option>
+          <option value="SEK">SEK</option>
+          <option value="NOK">NOK</option>
+          <option value="DKK">DKK</option>
+          <option value="TWD">TWD</option>
+          <option value="CNY">CNY</option>
+        </select>
+      </div>
+      <div class="selector-group">
+        <label for="sel-billing">Billing Period</label>
+        <select id="sel-billing">
+          <option value="hour">Per Hour</option>
+          <option value="day">Per Day</option>
+          <option value="month" selected>Per Month</option>
+          <option value="year">Per Year</option>
+        </select>
+      </div>
+      <div class="selector-group">
+        <label for="sel-pricing">Pricing Model</label>
+        <select id="sel-pricing">
+          <option value="payg">Pay-as-you-go</option>
+          <option value="spot">Spot</option>
+          <option value="1yr">Reserved 1 Year</option>
+          <option value="3yr">Reserved 3 Years</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="fetch-btn" onclick="fetchPricing()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        Load Pricing
+      </button>
+    </section>
+
+    <!-- Loading -->
+    <div id="loading" class="loading" style="display:none;">
+      <div class="spinner"></div>
+      <p>Fetching pricing data...</p>
+      <div class="progress-bar-container" id="progress-bar-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <!-- Filter toolbar (shown after data loads) -->
+    <div class="toolbar" id="toolbar" style="display:none;">
+      <div class="toolbar-top">
+        <div class="toolbar-filters">
+          <div class="filter-group filter-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="search" placeholder="Search VM name..." oninput="applyFilters()" />
+          </div>
+          <div class="filter-group">
+            <label>Family</label>
+            <select id="filter-family" onchange="applyFilters()"><option value="">All</option></select>
+          </div>
+          <div class="filter-group">
+            <label>vCPUs</label>
+            <select id="filter-vcpus" onchange="applyFilters()">
+              <option value="">Any</option>
+              <option value="1">1</option><option value="2">2</option><option value="4">4</option>
+              <option value="8">8</option><option value="16">16</option><option value="32">32</option>
+              <option value="48">48</option><option value="64">64</option><option value="96">96</option>
+              <option value="128+">128+</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Memory</label>
+            <select id="filter-memory" onchange="applyFilters()">
+              <option value="">Any</option>
+              <option value="0-4">0-4 GiB</option><option value="4-16">4-16 GiB</option>
+              <option value="16-64">16-64 GiB</option><option value="64-256">64-256 GiB</option>
+              <option value="256+">256+ GiB</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Type</label>
+            <select id="filter-type" onchange="applyFilters()">
+              <option value="">All</option>
+              <option value="general">General Purpose</option>
+              <option value="compute">Compute Optimized</option>
+              <option value="memory">Memory Optimized</option>
+              <option value="storage">Storage Optimized</option>
+              <option value="gpu">GPU</option>
+              <option value="hpc">HPC</option>
+              <option value="confidential">Confidential</option>
+            </select>
+          </div>
+          <button class="btn-icon btn-reset" onclick="resetFilters()" title="Reset filters">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+          </button>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn-icon" onclick="toggleColumnPicker()" id="col-picker-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3h7a2 2 0 012 2v14a2 2 0 01-2 2h-7M5 3h7v18H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+            Columns
+          </button>
+          <button class="btn-icon" onclick="exportCSV()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            CSV
+          </button>
+          <button class="btn-icon" onclick="exportJSON()">JSON</button>
+        </div>
+      </div>
+      <div class="toolbar-meta">
+        <span id="results-count"></span>
+        <span class="toolbar-sep">|</span>
+        <span id="region-display"></span>
+        <span class="toolbar-sep">|</span>
+        <span id="pricing-model-display"></span>
+      </div>
+
+      <!-- Column picker dropdown -->
+      <div class="column-picker" id="column-picker" style="display:none;">
+        <div class="column-picker-header">
+          <strong>Visible Columns</strong>
+          <button class="btn-link" onclick="resetColumns()">Reset</button>
+        </div>
+        <div class="column-picker-list" id="column-picker-list"></div>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <section id="table-section" style="display:none;">
+      <div class="table-wrapper" id="table-wrapper">
+        <table id="sku-table">
+          <thead id="sku-thead"></thead>
+          <tbody id="sku-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </section>
+
+    <!-- Empty state -->
+    <div id="empty-state" class="empty-state" style="display:none;">
+      <svg width="48" height="48" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2" opacity=".3"/><path d="M20 32h24M32 20v24" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".3"/></svg>
+      <p>No VMs match your filters.</p>
+      <button class="btn-secondary btn-sm" onclick="resetFilters()">Reset Filters</button>
+    </div>
+
+    <!-- Welcome hero (shown initially) -->
+    <div id="welcome" class="welcome">
+      <div class="welcome-icon">
+        <svg width="64" height="64" viewBox="0 0 32 32" fill="none"><path d="M14.5 3L2 22.5h9.5L16 14l4.5 13H30L18 3h-3.5z" fill="currentColor" opacity=".15"/></svg>
+      </div>
+      <h2>Azure VM Pricing Explorer</h2>
+      <p>Compare 700+ Azure VM sizes with real-time pricing.<br/>Select a region above and click <strong>Load Pricing</strong> to get started.</p>
+      <div class="welcome-features">
+        <div class="welcome-feature">
+          <span class="welcome-emoji">&#9889;</span>
+          <span><strong>No login required</strong><br/>Uses free public Azure Pricing API</span>
+        </div>
+        <div class="welcome-feature">
+          <span class="welcome-emoji">&#128176;</span>
+          <span><strong>Real-time pricing</strong><br/>Pay-as-you-go, Spot, Reserved 1yr/3yr</span>
+        </div>
+        <div class="welcome-feature">
+          <span class="welcome-emoji">&#127760;</span>
+          <span><strong>Multi-currency</strong><br/>USD, EUR, GBP, JPY, and 10+ more</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <p>Data from <a href="https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices" target="_blank">Azure Retail Prices API</a> (free, no auth)</p>
+      <p class="footer-sub">Inspired by <a href="https://cloudprice.net" target="_blank">CloudPrice.net</a></p>
+    </div>
+  </footer>
+
+  <script src="vm-specs.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
